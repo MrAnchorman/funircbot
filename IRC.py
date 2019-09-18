@@ -59,6 +59,7 @@ class IRC:
         self.sendServerMessage("NICK " + self.nick)
 
     def identifyUser(self):
+        print('Identifying myself as ' + self.nick)
         self.sendServerMessage("PRIVMSG" + " :NICKSERV identify " + self.password + "\n")
 
     def joinChannel(self, channelname = None):
@@ -71,6 +72,8 @@ class IRC:
         while ircmsg.find('End of /NAMES list.') == -1:
             ircmsg = self.receiveMessage()
             print(ircmsg)
+            if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
+                self.identifyUser()
 
     def sendServerMessage(self, message):
         if isinstance(message, str):
@@ -159,16 +162,12 @@ class IRC:
         messageProperties['type'] = msgDict[1]
         messageProperties['channel'] = msgDict[2] if msgDict[2] != self.nick else messageProperties['sender']
         messageProperties['messageText'] = ''
-        if messageProperties['type'] != 'JOIN':
-            s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
+        s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
+        if message.find(s + ' :') != -1:    
             messageProperties['messageText'] = message.split(s + ' :')[1]
         return messageProperties
 
     def processMessage(self, message):
-        if message['type'] == 'NOTICE' and message['sender'] == 'NickServ':
-            if message['messageText'] == 'This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>':
-                self.identifyUser()
-
         if message['messageText'][:1] == ':' and message['messageText'][1:2] != ' ' and message['messageText'][1:2] != ':':
             command = message['messageText'].split()[0][1:]
             try:
