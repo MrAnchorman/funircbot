@@ -28,7 +28,7 @@ class IRC:
         self.ircport = 6697
         self.nick = config.nick
         self.password = config.password
-        self.channel = '#root-shell'
+        self.channel = config.channel
         self.encoding = 'utf-8'
         self.plugins = dict()
 
@@ -120,6 +120,7 @@ class IRC:
         logging.debug('Running...')
         while True:
             ircmsg = self.receiveMessage()
+            print(ircmsg)
             if ircmsg.startswith('PING :'):
                 print('Ping? ', end='')
                 self.ping(ircmsg)
@@ -157,8 +158,10 @@ class IRC:
         messageProperties['sender'] = msgDict[0].split('!', 1)[0][1:]
         messageProperties['type'] = msgDict[1]
         messageProperties['channel'] = msgDict[2] if msgDict[2] != self.nick else messageProperties['sender']
-        s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
-        messageProperties['messageText'] = message.split(s + ' :')[1]
+        messageProperties['messageText'] = ''
+        if messageProperties['type'] != 'JOIN':
+            s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
+            messageProperties['messageText'] = message.split(s + ' :')[1]
         return messageProperties
 
     def processMessage(self, message):
