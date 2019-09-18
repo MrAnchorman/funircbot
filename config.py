@@ -1,3 +1,3 @@
-nick = 'Anchorman'
-password = 'IrtiaB.IpisS2019!'
+nick = ''
+password = ''
 
