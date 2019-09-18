@@ -27,7 +27,7 @@ class IRC:
         self.ircserver = 'chat.freenode.net'
         self.ircport = 6697
         self.nick = config.nick
-        self.password = config.pass
+        self.password = config.password
         self.channel = '#root-shell'
         self.encoding = 'utf-8'
         self.plugins = dict()
@@ -109,7 +109,8 @@ class IRC:
         logging.debug('Got the Disconnectmessage. ' + m.split(':')[1])
         '''
         I was told to go. I go
-        :MrAnchorman!~MrAnchorm@pgno.dvag.com QUIT :Client Quit
+        :MrAnchorman!~MrAnchorm@pgno.dvag.com QUIT :Client Quit
+
         ERROR :Closing Link: pgno.dvag.com (Client Quit)
         '''
         logging.debug('Closed connection')

@@ -1,2 +1,3 @@
 nick = 'Anchorman'
-pass = 'IrtiaB.IpisS2019!'
+password = 'IrtiaB.IpisS2019!'
+
