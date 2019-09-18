@@ -5,6 +5,7 @@ import ssl
 import logging
 import importlib
 from datetime import datetime
+import config
 
 # Ready up the Logging
 logfile = './logs/gitbot.log'
@@ -25,8 +26,8 @@ class IRC:
         # Set some variables which are needed to connect
         self.ircserver = 'chat.freenode.net'
         self.ircport = 6697
-        self.nick = 'Anchorman'
-        self.password = 'IrtiaB.IpisS2019!'
+        self.nick = config.nick
+        self.password = config.pass
         self.channel = '#root-shell'
         self.encoding = 'utf-8'
         self.plugins = dict()
