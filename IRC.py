@@ -172,7 +172,10 @@ class IRC:
             command = message['messageText'].split()[0][1:]
             try:
                 self.plugins[command] = self.loadIRCPlugin(command)
-                output = self.plugins[command].run(message)
+                if self.plugins[command] == False:
+                    self.plugins.pop(command)
+                else:
+                    output = self.plugins[command].run(message)
                 if isinstance(output, str):
                     self.sendChannelMessage(output, message['channel'])
             except Exception as e:
@@ -183,8 +186,11 @@ class IRC:
         print('I should load a plugin. Command is: ' + command)
         commandFile = command + '.py'
         if command in self.plugins.keys():
-            logging.debug('Plugin ' + command + ' reloaded.')
-            return importlib.reload(self.plugins[command])
+            if commandFile in os.listdir(os.path.join('.', 'plugins')):
+                logging.debug('Plugin ' + command + ' reloaded.')
+                return importlib.reload(self.plugins[command])
+            else:
+                return False
         elif commandFile in os.listdir(os.path.join('.', 'plugins')):
             logging.debug('Plugin ' + command + ' loaded.')
             return importlib.import_module('.' + command, 'plugins')
