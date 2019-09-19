@@ -5,7 +5,8 @@ import ssl
 import logging
 import importlib
 from datetime import datetime
-import config
+from getpass import getpass
+
 
 # Ready up the Logging
 logfile = './logs/gitbot.log'
@@ -26,10 +27,19 @@ class IRC:
         # Set some variables which are needed to connect
         self.ircserver = 'chat.freenode.net'
         self.ircport = 6697
-        self.nick = config.nick
-        self.password = config.password
-        self.channel = config.channel
+        # getting variables from config.py in same directory
+        # if config.py does not exist, ask the user
+        if os.path.isfile(os.path.join('.', 'config.py')):
+            config = importlib.import_module('config')
+            self.nick = config.nick
+            self.password = config.password
+            self.channel = config.channel
+        else:
+            self.nick = input('Nickname of the Bot: ')
+            self.channel = input('Channels to join: ')
+            self.password = getpass('Bot password for nickserv: ')
         self.encoding = 'utf-8'
+        # self.plugins is gonna save loaded plugins (see self.loadIRCPlugins)
         self.plugins = dict()
 
     def connect(self):
@@ -42,38 +52,48 @@ class IRC:
                                                                     self.ircport))
 
         logging.debug("Wrapping socket to SSL")
+        # setting up a context to verify the hostname 
         context = ssl.SSLContext()
         context.verify_mode = ssl.CERT_REQUIRED
         context.check_hostname = True
         context.load_default_certs()
-        self.ircsock = context.wrap_socket(s, server_hostname='chat.freenode.net')
+        self.ircsock = context.wrap_socket(s, server_hostname=self.ircserver)
 
+        # connect
         self.ircsock.connect((self.ircserver, self.ircport))
 
     def identifyServer(self):
-        '''
-        This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
-        '''
+        # after connecting to the server we need to send the following string
+        # if we don't do this, the server won't let us connect and instead send a message like
+        # 'not authorized'
+        logging.debug('Sending User and Nick Information to the Server.')
         self.sendServerMessage("USER " + self.nick + " " + self.nick + " " + \
                                self.nick + " :Just testing my skills to write a bot")
         self.sendServerMessage("NICK " + self.nick)
 
     def identifyUser(self):
-        print('Identifying myself as ' + self.nick)
+        # if nickserv is asking for identification, send the string like /msg nickserv identify <password>
+        '''
+        This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
+        '''
+        logging.debug('Identifying myself as ' + self.nick)
         self.sendServerMessage("PRIVMSG" + " :NICKSERV identify " + self.password + "\n")
 
     def joinChannel(self, channelname = None):
         if channelname is None:
+            logging.debug('Channelname is None, i\'ll make it the default channel')
             channelname = self.channel
         if channelname[:1] != '#':
             channelname = '#' + channelname
         self.sendServerMessage("JOIN " + channelname)
+        logging.debug('Joining channel ' + channelname)
         ircmsg = ""
-        while ircmsg.find('End of /NAMES list.') == -1:
+        while ircmsg.find('End of /NAMES list.') != -1:
             ircmsg = self.receiveMessage()
             print(ircmsg)
             if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
                 self.identifyUser()
+        logging.debug('Joined channel ' + channelname)
 
     def sendServerMessage(self, message):
         if isinstance(message, str):
@@ -198,12 +218,9 @@ class IRC:
              logging.warning('A plugin called ' + command + ' could not be found.')
              raise Exception('Cannot load module ' + command + '.')
 
-def main():
-	i = IRC()
-	i.connect()
-	i.identifyServer()
-	i.joinChannel()
-	i.run()
-	
-if __name__ == '__main__':
-	main()
+    def startup(self):
+        self.connect()
+        self.identifyServer()
+        self.joinChannel()
+        self.run()
+        return True
