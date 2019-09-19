@@ -1,7 +1,7 @@
 # funircbot
 Just an IRC Bot for testing and joking and learning better python
 
-At the moment, just add a config.py with the following content:
+At the moment, just add a config.py with the following content:<br>
 nick = ''<br>
 password = ''<br>
 channel = ''<br>
