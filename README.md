@@ -2,9 +2,9 @@
 Just an IRC Bot for testing and joking and learning better python
 
 At the moment, just add a config.py with the following content:
-nick = ''\n
-password = ''\n
-channel = ''\n
+nick = ''<br>
+password = ''<br>
+channel = ''<br>
 
 Add the Strings as needed.
 
