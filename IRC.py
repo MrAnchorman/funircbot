@@ -82,6 +82,7 @@ class IRC:
         self.sendServerMessage("PRIVMSG" + " :NICKSERV identify " + self.password + "\n")
 
     def joinChannel(self, channelname = None):
+        # Join channel. If channelname is not given, the bot will join the channel which is given per object variable
         if channelname is None:
             logging.debug('Channelname is None, i\'ll make it the default channel')
             channelname = self.channel
@@ -92,12 +93,12 @@ class IRC:
         ircmsg = ""
         while ircmsg.find('End of /NAMES list.') != -1:
             ircmsg = self.receiveMessage()
-            print(ircmsg)
             if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
                 self.identifyUser()
         logging.debug('Joined channel ' + channelname)
 
     def sendServerMessage(self, message):
+        # this function sends a given string to the server
         if isinstance(message, str):
             totalsent = 0
             while totalsent < len(message):
@@ -109,6 +110,7 @@ class IRC:
         return False
 
     def sendChannelMessage(self, message, target = None):
+        # taking a string and sending it to the chat
         if target == None:
             target = self.channel
         try:
@@ -118,17 +120,21 @@ class IRC:
         return True
 
     def receiveMessage(self):
+        # receive everything the server sends
         message = self.ircsock.recv(4096).decode(self.encoding)
         message = message.strip('\n\r')
         return message
 
     def ping(self, message):
+        # answer to ping from the server
         ret = message.split()[1]
         ret = "PONG " + ret
         self.sendServerMessage(ret)
         print("Pong!")
 
     def disconnect(self):
+        # send the quit command with a quit message
+        # receiving the quit answer from the server
         self.sendServerMessage("QUIT :My Master told me to leave.")
         m = self.receiveMessage()
         logging.debug('Got the Disconnectmessage. ' + m.split(':')[1])
@@ -142,10 +148,10 @@ class IRC:
         return True
 
     def run(self):
+        # run forever, receive messages and do whatever you want
         logging.debug('Running...')
         while True:
             ircmsg = self.receiveMessage()
-            print(ircmsg)
             if ircmsg.startswith('PING :'):
                 print('Ping? ', end='')
                 self.ping(ircmsg)
@@ -166,6 +172,7 @@ class IRC:
         return True
 
     def getMessageProperties(self, message):
+        # split the message in the parts we need
         '''
         :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
         Ping? Pong!
@@ -190,14 +197,14 @@ class IRC:
         return messageProperties
 
     def processMessage(self, message):
+        # the argument takes the dict with the splitted server message
         if message['messageText'][:1] == ':' and message['messageText'][1:2] != ' ' and message['messageText'][1:2] != ':':
             command = message['messageText'].split()[0][1:]
             try:
-                self.sendChannelMessage('I have a message in myqueue: ' + self.queueToIRC.get(False, 5))
+                self.sendChannelMessage('I have a message in my queue: ' + self.queueToIRC.get(False, 5))
                 self.queueToIRC.task_done()
             except queue.Empty as q:
                 pass
-            self.queueFromIRC.put(message['sender'] + ' schrieb: ' + message['messageText'])
             try:
                 self.plugins[command] = self.loadIRCPlugin(command)
                 if self.plugins[command] == False:
@@ -210,6 +217,10 @@ class IRC:
                 print(e.args)            
 
     def loadIRCPlugin(self, command):
+        # if a command is given (messageText has : as first char)
+        # let's see if there's a plugin in the plugins folder
+        # if there's such a file, load (or reload) the plugin
+        # and call it
         print('I should load a plugin. Command is: ' + command)
         commandFile = command + '.py'
         if command in self.plugins.keys():
@@ -226,6 +237,8 @@ class IRC:
              raise Exception('Cannot load module ' + command + '.')
 
     def startup(self, queueToIRC, queueFromIRC):
+        # since i tried to make this bot a threaded bot, i need to call this function
+        # setting up the needed queues and running up from hereon
         self.queueToIRC = queueToIRC
         self.queueFromIRC = queueFromIRC
         self.connect()
