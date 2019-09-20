@@ -196,7 +196,7 @@ class IRC:
                 self.sendChannelMessage('I have a message in myqueue: ' + self.queueToIRC.get(False, 5))
                 self.queueToIRC.task_done()
             except queue.Empty as q:
-                print(q.args)
+                pass
             self.queueFromIRC.put(message['sender'] + ' schrieb: ' + message['messageText'])
             try:
                 self.plugins[command] = self.loadIRCPlugin(command)
