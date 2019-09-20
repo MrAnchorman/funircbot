@@ -3,21 +3,20 @@
 import time
 import importlib
 import threading
+from queue import Queue
 
 def main():
     plugins = dict()
     plugins['irc'] = importlib.import_module('IRC')
     irc = plugins['irc'].IRC()
-    t = threading.Thread(target=irc.startup).start()
+    queueToIRC = Queue()
+    queueFromIRC = Queue()
+    queueToIRC.put('Testing the shit outta queues!')
+    t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC]).start()
     i = 0
-    while True:
-        print(i)
-        i += 1
-        if i == 30:
-            break
-        time.sleep(1)
-    print('ende')
-    print(t)
+    irc.sendChannelMessage(queueFromIRC.get())
+    queueFromIRC.task_done()
+    
 
 if __name__ == '__main__':
     main()

@@ -6,7 +6,7 @@ import logging
 import importlib
 from datetime import datetime
 from getpass import getpass
-
+from queue import Queue
 
 # Ready up the Logging
 logfile = './logs/gitbot.log'
@@ -41,6 +41,8 @@ class IRC:
         self.encoding = 'utf-8'
         # self.plugins is gonna save loaded plugins (see self.loadIRCPlugins)
         self.plugins = dict()
+        self.queueToIRC = None
+        self.queueFromIRC = None
 
     def connect(self):
         # create a socket and connect to the server
@@ -191,6 +193,12 @@ class IRC:
         if message['messageText'][:1] == ':' and message['messageText'][1:2] != ' ' and message['messageText'][1:2] != ':':
             command = message['messageText'].split()[0][1:]
             try:
+                self.sendChannelMessage('I have a message in myqueue: ' + self.queueToIRC.get(False, 5))
+                self.queueToIRC.task_done()
+            except Queue.Empty as q:
+                print(q.args)
+            self.queueFromIRC.put(message['sender'] + ' schrieb: ' + message['messageText'])
+            try:
                 self.plugins[command] = self.loadIRCPlugin(command)
                 if self.plugins[command] == False:
                     self.plugins.pop(command)
@@ -199,8 +207,7 @@ class IRC:
                 if isinstance(output, str):
                     self.sendChannelMessage(output, message['channel'])
             except Exception as e:
-                print(e.args)
-            
+                print(e.args)            
 
     def loadIRCPlugin(self, command):
         print('I should load a plugin. Command is: ' + command)
@@ -218,7 +225,9 @@ class IRC:
              logging.warning('A plugin called ' + command + ' could not be found.')
              raise Exception('Cannot load module ' + command + '.')
 
-    def startup(self):
+    def startup(self, queueToIRC, queueFromIRC):
+        self.queueToIRC = queueToIRC
+        self.queueFromIRC = queueFromIRC
         self.connect()
         self.identifyServer()
         self.joinChannel()
