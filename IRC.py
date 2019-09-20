@@ -6,7 +6,7 @@ import logging
 import importlib
 from datetime import datetime
 from getpass import getpass
-from queue import Queue
+import queue
 
 # Ready up the Logging
 logfile = './logs/gitbot.log'
@@ -195,7 +195,7 @@ class IRC:
             try:
                 self.sendChannelMessage('I have a message in myqueue: ' + self.queueToIRC.get(False, 5))
                 self.queueToIRC.task_done()
-            except Queue.Empty as q:
+            except queue.Empty as q:
                 print(q.args)
             self.queueFromIRC.put(message['sender'] + ' schrieb: ' + message['messageText'])
             try:
