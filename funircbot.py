@@ -13,10 +13,10 @@ def main():
     queueFromIRC = queue.Queue()
     queueToIRC.put('Testing the shit outta queues!')
     t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC]).start()
-    i = 0
-    irc.sendChannelMessage(queueFromIRC.get())
+    que = queueFromIRC.get()
+    do, tuple(parameters) = que.split(':')
+
     queueFromIRC.task_done()
-    
 
 if __name__ == '__main__':
     main()
