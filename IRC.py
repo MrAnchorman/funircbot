@@ -93,7 +93,7 @@ class IRC:
         ircmsg = ""
         while ircmsg.find('End of /NAMES list.') != -1:
             ircmsg = self.receiveMessage()
-            if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
+            if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
                 self.identifyUser()
         logging.debug('Joined channel ' + channelname)
 
