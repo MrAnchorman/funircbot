@@ -8,19 +8,6 @@ from datetime import datetime
 from getpass import getpass
 import queue
 
-# Ready up the Logging
-logfile = './logs/gitbot.log'
-if (not os.path.exists(logfile)) or (not os.access(logfile, os.W_OK)):
-    if not os.path.isdir('./logs'):
-        os.makedirs('./logs')
-        open(logfile, 'a+').close()
-
-logging.basicConfig(
-filename=logfile,
-level = logging.DEBUG,
-style = '{',
-format = '{asctime} [{levelname:7}] {message}',
-datefmt = '%d.%m.%Y %H:%M:%S')
 
 class IRC:
     def __init__(self):
