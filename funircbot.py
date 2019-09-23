@@ -14,15 +14,6 @@ parser.add_argument('-c', '--configfile', action='store', type=str, required=Fal
 parser.add_argument('-l', '--logfile', action='store', type=str, required=False, dest='logfile', help='Give a path (absolute or relative) to a config file')
 args = parser.parse_args()
 
-# if there isn't any configuration file in the arguments list, give a default path
-if not args.configfile:
-    configfile = os.path.join('.', 'config.dat')
-
-if os.path.isdir(configfile):
-    configfile = os.path.join(configfile, 'config.dat')
-
-if 
-
 # Ready up the Logging
 if not args.logfile:
     logfile = './logs/gitbot.log'
@@ -37,6 +28,25 @@ level = logging.DEBUG,
 style = '{',
 format = '{asctime} [{levelname:7}] {message}',
 datefmt = '%d.%m.%Y %H:%M:%S')
+
+
+# if there isn't any configuration file in the arguments list, give a default path
+if not args.configfile:
+    logging.debug('No logfile given per argument. Will use path {}.'.format(os.path.join('.', 'config.dat')))
+    configfile = os.path.join('.', 'config.dat')
+
+if os.path.isdir(configfile):
+    logging.debug('Config file is a path, not a file. Will create file named config.dat in given path')
+    configfile = os.path.join(configfile, 'config.dat')
+
+if not os.access(configfile, os.R_OK):
+    logging.error('Given config file: {} cannot be read.'.format(configfile))
+    configfile = os.path.join('.', 'config.dat')
+
+if not os.access(configfile, os.W_OK):
+    logging.error('Config file can not be written.')
+    configfile = os.path.join('.', 'config.dat')
+
 
 def main():
     plugins = dict()
