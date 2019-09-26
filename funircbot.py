@@ -15,7 +15,6 @@ from Configuration.configuration import Config
 # start the real program
 def main():
     confpath = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])))
-    print(confpath)
     conf = Config(confpath)
     conf.createConfig()
     plugins = dict()
