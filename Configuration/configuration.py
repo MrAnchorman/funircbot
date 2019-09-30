@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import logging
-import configparser
+import socket
+from configparser import ConfigParser
 
 
 class Config:
@@ -9,68 +12,85 @@ class Config:
         self.path = path
 
 
-    def configRun(self):
+    def createConfig(self):
 
-        config = configparser.ConfigParser(allow_no_value=True)
+        config = ConfigParser(allow_no_value=True)
+
+        while True:
+            config.read_file(open(self.path))
+            break
+            print('Cannot open config file. Please configure another path to configuration file')
+            self.path = input('Path to config file: ')
+            if self.path == 'c':
+                sys.exit(0)
+            continue
+
+
+        if not config.has_section('IRCSERVER'):
+            config.add_section('IRCSERVER')
+
+        if not config.has_option('IRCSERVER', 'server') or config.get('IRCSERVER', 'server').strip == '':
+            try:
+                host = self.getServerAddress()
+                config.set('IRCSERVER', 'server', host)
+            except ValueError as e:
+                print(e)
+                sys.exit(127)
+
+        if not config.has_option('IRCSERVER', 'port'):
+            try:
+                port = self.getServerPort()
+            except ValueError as e:
+                print(e)
+                sys.exit(127)
+            config.set('IRCSERVER', 'port', str(port))
+
+        if not config.has_section('IRCUSER'):
+            config.add_section('IRCUSER')
+
+        if not config.has_option('IRCUSER', 'nick'):
+            config.set('IRCUSER', 'nick', input('Bot\'s nickname: '))
+
+        if not config.has_option('IRCUSER', 'password'):
+            config.set('IRCUSER', 'password', input('Bot\'s password (Warning: stored in clear text in config file!): '))
+
+        if not config.has_section('IRCADMIN'):
+            config.add_section('IRCADMIN')
+
+        adminlist = self.getBotAdministrators()
+        config.set('IRCADMIN', 'administrators', adminlist)
 
         try:
-            with open(self.path, 'a+') as f:
+            with open(self.path + '2', 'w') as f:
+                config.write(f)
         except Exception as e:
-            print('Cannot open config file. Please configure another path to configuration file')
-
-            if not config.has_section('IRCSERVER'):
-                config.add_section('IRCSERVER')
-                
-            if not config.has_option('IRCSERVER', 'server'):
-                host = self.getServerAddress()
-                if host == False:
-                    raise Exception('Aborted by user')
-                else:
-                    config.set('IRCSERVER', 'server', host)
-                    
-            if not config.has_option('IRCSERVER', 'port'):
-                port = self.getPort()
-                if port == False:
-                    raise Exception('Aborted by user')
-                config.set('IRCSERVER', 'port', port)
-
-            if not config.has_section('IRCUSER'):
-                config.add_section('IRCUSER')
-
-            if not config.has_option('IRCUSER', 'nick'):
-                config.set('IRCUSER', 'nick', input('Bot\'s nickname: '))
-
-            if not config.has_option('IRCUSER', 'password'):
-                config.set('IRCUSER', 'password', input('Bot\'s password (Warning: stored in clear text in config file!): '))
-
-            if not config.has_section('IRCADMIN'):
-                config.add_section('IRCADMIN')
-
-            adminlist = getBotAdministrators()
-            config.set('IRCADMIN', 'administrators', adminlist)
-            
-            config.write(f)
+            print(e.args)
+            print(e.__class__.__name__)
 
     def getServerAddress(self):
         while True:
-            try:
                 host = input('Hostname for IRC Server: ')
+                if host == '':
+                    return 'chat.freenode.net'
                 if host == 'c':
-                    return False
-                socket.gethostbyname(host)
-                return host
-            except:
-                print('Host cannot be reached. I will ask for a Server until it can be reached.')
-                continue
+                    raise ValueError('User aborted')
+                try:
+                    socket.gethostbyname(host)
+                    return host
+                except socket.gaierror:
+                    print('Host cannot be reached. I will ask for a Server until it can be reached.')
 
     def getServerPort(self):
         while True:
             port = input('Port (SSL is usually 6697: ')
+            if port == '':
+                return 6697
             if port == 'c':
-                return False
+               raise ValueError('User aborted')
+            port = int(port)
             if port < 1024 or port > 65535:
                 print('This is not an acceptable port. Get the portnumber from the homepage of the network you want to connect to (usually this is 6697)')
-                debug.error('Invalid user input: port was smaller or bigger than the allowed ports: {}'.format(port))
+                logging.error('Invalid user input: port was smaller or bigger than the allowed ports: {}'.format(port))
             else:
                 return port
 
@@ -95,7 +115,6 @@ class Config:
 
 def main():
     c = Config('test.txt')
-    c.checkPath()
     c.createConfig()
 
 if __name__ == '__main__':
