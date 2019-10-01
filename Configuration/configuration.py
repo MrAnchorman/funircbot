@@ -6,6 +6,12 @@ import logging
 import socket
 from configparser import ConfigParser
 
+class UserAbort(Exception):
+    def __init__(self, msg = None):
+        super().__init__()
+        if msg != None:
+            print(msg)
+
 
 class Config:
     def __init__(self, path):
@@ -17,13 +23,15 @@ class Config:
         config = ConfigParser(allow_no_value=True)
 
         while True:
-            config.read_file(open(self.path))
-            break
-            print('Cannot open config file. Please configure another path to configuration file')
-            self.path = input('Path to config file: ')
-            if self.path == 'c':
-                sys.exit(0)
-            continue
+            if os.path.exists(self.path):
+                config.read_file(open(self.path))
+                break
+            else:
+                print('Cannot open config file. Please configure another path to configuration file')
+                self.path = input('Path to config file: ')
+                if self.path == 'c':
+                    sys.exit(0)
+                continue
 
 
         if not config.has_section('IRCSERVER'):
@@ -33,14 +41,14 @@ class Config:
             try:
                 host = self.getServerAddress()
                 config.set('IRCSERVER', 'server', host)
-            except ValueError as e:
+            except UserAbort as e:
                 print(e)
                 sys.exit(127)
 
         if not config.has_option('IRCSERVER', 'port'):
             try:
                 port = self.getServerPort()
-            except ValueError as e:
+            except UserAbort as e:
                 print(e)
                 sys.exit(127)
             config.set('IRCSERVER', 'port', str(port))
@@ -73,7 +81,7 @@ class Config:
                 if host == '':
                     return 'chat.freenode.net'
                 if host == 'c':
-                    raise ValueError('User aborted')
+                    raise UserAbort('User aborted')
                 try:
                     socket.gethostbyname(host)
                     return host
@@ -86,7 +94,7 @@ class Config:
             if port == '':
                 return 6697
             if port == 'c':
-               raise ValueError('User aborted')
+               raise UserAbort('User aborted')
             port = int(port)
             if port < 1024 or port > 65535:
                 print('This is not an acceptable port. Get the portnumber from the homepage of the network you want to connect to (usually this is 6697)')
