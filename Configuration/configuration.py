@@ -69,14 +69,16 @@ class Config:
         config.set('IRCADMIN', 'administrators', adminlist)
 
         try:
-            with open(self.path + '2', 'w') as f:
+            with open(self.path, 'w') as f:
                 config.write(f)
         except Exception as e:
             print(e.args)
             print(e.__class__.__name__)
+        else:
+            f.close()
 
     def getServerAddress(self):
-        while True:
+        while True: 
                 host = input('Hostname for IRC Server: ')
                 if host == '':
                     return 'chat.freenode.net'
