@@ -22,15 +22,9 @@ def main():
     irc = plugins['irc'].IRC()
     queueToIRC = queue.Queue()
     queueFromIRC = queue.Queue()
-    queueToIRC.put('Testing the shit outta queues!')
-    #t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC]).start()
-    queueFromIRC.put('echo:test')
-    que = queueFromIRC.get()
-    #do, tuple(parameters) = que.split(':')
+    t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC]).start()
 
-    queueFromIRC.task_done()
-
-### The Arguments are scripted, but will not be used atm. 
+### The Arguments are scripted, but will not be used atm.
 logging.debug('This is scripted, but will not be used atm. First I need to understand where I should store a given configfile path.')
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--configfile', action='store', type=str, required=False, dest='configfile', help='Give a path (absolute or relative) to a config file')
