@@ -15,6 +15,7 @@ class UserAbort(Exception):
 
 class Config:
     def __init__(self, path):
+        print(os.getcwd())
         self.path = path
 
 
