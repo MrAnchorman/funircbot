@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import logging
@@ -15,9 +13,10 @@ class UserAbort(Exception):
 
 class Config:
     def __init__(self, path):
-        print(os.getcwd())
-        self.path = path
-
+        if os.path.isdir(path):
+            self.path = os.path.join(path, 'config.ini')
+        else:
+            self.path = path
 
     def createConfig(self):
 
@@ -32,19 +31,19 @@ class Config:
                 self.path = input('Path to config file: ')
                 if self.path == 'c':
                     sys.exit(0)
-                continue
+                    continue
 
 
-        if not config.has_section('IRCSERVER'):
-            config.add_section('IRCSERVER')
+        if not config.has_section('IRCSERVER'): config.add_section('IRCSERVER')
 
-        if not config.has_option('IRCSERVER', 'server') or config.get('IRCSERVER', 'server').strip == '':
+        if not config.has_option('IRCSERVER', 'server') or \
+                                     config.get('IRCSERVER', 'server').strip ==  \
+                                     '':
             try:
                 host = self.getServerAddress()
                 config.set('IRCSERVER', 'server', host)
-            except UserAbort as e:
-                print(e)
-                sys.exit(127)
+            except UserAbort as e: print(e)
+            sys.exit(127)
 
         if not config.has_option('IRCSERVER', 'port'):
             try:
@@ -58,10 +57,12 @@ class Config:
             config.add_section('IRCUSER')
 
         if not config.has_option('IRCUSER', 'nick'):
-            config.set('IRCUSER', 'nick', input('Bot\'s nickname: '))
+            nick = self.getBotNickname()
+            config.set('IRCUSER', 'nick', nick)
 
         if not config.has_option('IRCUSER', 'password'):
-            config.set('IRCUSER', 'password', input('Bot\'s password (Warning: stored in clear text in config file!): '))
+            botpassword = self.getBotPassword()
+            config.set('IRCUSER', 'password', botpassword)
 
         if not config.has_section('IRCADMIN'):
             config.add_section('IRCADMIN')
@@ -79,7 +80,7 @@ class Config:
             f.close()
 
     def getServerAddress(self):
-        while True: 
+        while True:
                 host = input('Hostname for IRC Server: ')
                 if host == '':
                     return 'chat.freenode.net'
@@ -105,6 +106,15 @@ class Config:
             else:
                 return port
 
+    def getBotNickname(self):
+        nick = input('Bot\'s nickname: ')
+        return nick
+
+    def getBotPassword(self):
+        pw = input('Bot\'s password: ')
+        return pw
+
+
     def getBotAdministrators(self):
         adminlist = list()
         while True:
@@ -122,11 +132,3 @@ class Config:
                         adminlist.append(adminnick)
 
         return ';'.join(adminlist)
-
-
-def main():
-    c = Config('test.txt')
-    c.createConfig()
-
-if __name__ == '__main__':
-    main()
