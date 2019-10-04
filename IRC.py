@@ -142,9 +142,6 @@ class IRC:
             if ircmsg.startswith('PING :'):
                 print('Ping? ', end='')
                 self.ping(ircmsg)
-            elif ircmsg.find('peer') != -1:
-                print('PEER FOUND!!!: ' + ircmsg)
-                logging.warning(ircmsg)
             else:
                 messageProperties = self.getMessageProperties(ircmsg)
                 if messageProperties['messageText'] == 'byebot' and messageProperties['sender'] == 'break3r':
@@ -174,12 +171,13 @@ class IRC:
         '''
         messageProperties = dict()
         msgDict = message.split()
+        messageProperties['userhost'] = msgDict[0][1:]
         messageProperties['sender'] = msgDict[0].split('!', 1)[0][1:]
         messageProperties['type'] = msgDict[1]
         messageProperties['channel'] = msgDict[2] if msgDict[2] != self.nick else messageProperties['sender']
         messageProperties['messageText'] = ''
         s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
-        if message.find(s + ' :') != -1:    
+        if message.find(s + ' :') != -1:
             messageProperties['messageText'] = message.split(s + ' :')[1]
         return messageProperties
 
@@ -201,7 +199,7 @@ class IRC:
                 if isinstance(output, str):
                     self.sendChannelMessage(output, message['channel'])
             except Exception as e:
-                print(e.args)            
+                print(e.args)
 
     def loadIRCPlugin(self, command):
         # if a command is given (messageText has : as first char)
