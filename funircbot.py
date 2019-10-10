@@ -14,15 +14,23 @@ from Configuration.configuration import Config
 
 # start the real program
 def main():
-    confpath = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])))
-    conf = Config(confpath)
-    conf.createConfig()
+    #confpath = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])))
+    #conf = Config(confpath)
+    #conf.createConfig()
     plugins = dict()
     plugins['irc'] = importlib.import_module('IRC')
     irc = plugins['irc'].IRC()
     queueToIRC = queue.Queue()
     queueFromIRC = queue.Queue()
-    t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC]).start()
+    t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC])
+    t.start()
+    while True:
+        q = queueFromIRC.get()
+        if q == 'quit':
+            print('Got quit in my FROM IRC Queue.')
+            irc.disconnect()
+            t.join()
+            return 0
 
 ### The Arguments are scripted, but will not be used atm.
 logging.debug('This is scripted, but will not be used atm. First I need to understand where I should store a given configfile path.')

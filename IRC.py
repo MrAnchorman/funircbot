@@ -16,12 +16,14 @@ class IRC:
         self.ircport = 6697
         # getting variables from config.py in same directory
         # if config.py does not exist, ask the user
-        if os.path.isfile(os.path.join('.', 'config.py')):
+        if os.path.isfile(os.path.join(os.path.dirname(sys.argv[0]), 'config.py')):
+            print('Found config file.')
             config = importlib.import_module('config')
             self.nick = config.nick
             self.password = config.password
             self.channel = config.channel
         else:
+            print('No config found. Please enter values.')
             self.nick = input('Nickname of the Bot: ')
             self.channel = input('Channels to join: ')
             self.password = getpass('Bot password for nickserv: ')
@@ -79,9 +81,8 @@ class IRC:
         logging.debug('Joining channel ' + channelname)
         ircmsg = ""
         while ircmsg.find('End of /NAMES list.') != -1:
-            ircmsg = self.receiveMessage()
-            if ircmsg.find('This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>') != -1:
-                self.identifyUser()
+            ircmsg = self.receiveMessage
+        self.identifyUser()
         logging.debug('Joined channel ' + channelname)
 
     def sendServerMessage(self, message):
@@ -140,17 +141,20 @@ class IRC:
         while True:
             ircmsg = self.receiveMessage()
             if ircmsg.startswith('PING :'):
-                print('Ping? ', end='')
+                print('Ping?', end=' ')
                 self.ping(ircmsg)
             else:
                 messageProperties = self.getMessageProperties(ircmsg)
                 if messageProperties['messageText'] == 'byebot' and messageProperties['sender'] == 'break3r':
-                    print('I was told to go. I go')
-                    self.disconnect()
+                    print('Received command quit. Putting quit into FROM IRC Queue.')
+                    self.queueFromIRC.put('quit')
                     break
                 if ircmsg.find('peer') != -1:
                     print('PEER FOUND!!!: ' + ircmsg)
                     logging.warning(ircmsg)
+                if ircmsg.find('reloadtest') != -1 and messagePropeties['sender'] == 'break3r':
+                    self.queueFromIRC.put('reload')
+                    self.sendChannelMessage('Test')
                 self.processMessage(messageProperties)
         logging.debug('Left run()-Method.')
         return True
@@ -200,6 +204,9 @@ class IRC:
                     self.sendChannelMessage(output, message['channel'])
             except Exception as e:
                 print(e.args)
+
+        if message['messageText'][1:] == 'arrr':
+            self.sendChannelMessage('You\'re a pirate?')
 
     def loadIRCPlugin(self, command):
         # if a command is given (messageText has : as first char)
