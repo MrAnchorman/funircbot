@@ -13,6 +13,7 @@ class UserAbort(Exception):
 
 class Config:
     def __init__(self, path):
+        self.path = None
         if os.path.isdir(path):
             self.path = os.path.join(path, 'config.ini')
         else:
@@ -30,9 +31,7 @@ class Config:
                 print('Cannot open config file. Please configure another path to configuration file')
                 self.path = input('Path to config file: ')
                 if self.path == 'c':
-                    sys.exit(0)
-                    continue
-
+                    raise UserAbort('User aborted the configuration')
 
         if not config.has_section('IRCSERVER'): config.add_section('IRCSERVER')
 
