@@ -23,12 +23,12 @@ def main():
     config.createConfig()
     irc = plugins['irc'].IRC()
     queueToIRC = queue.Queue()
-    queueFromIRC = queue.Queue()
+    mainQueue = queue.Queue()
     irc.setup(config)
-    t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC])
+    t = threading.Thread(target=irc.startup, args=[queueToIRC, mainQueue])
     t.start()
     while True:
-        q = queueFromIRC.get()
+        q = mainQueue.get()
         if q == 'quit':
             print('Got quit in my FROM IRC Queue.')
             irc.disconnect()
