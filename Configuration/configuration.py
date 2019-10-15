@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import logging
@@ -13,27 +15,30 @@ class UserAbort(Exception):
 
 class Config:
     def __init__(self, path):
-        self.path = None
         if os.path.isdir(path):
-            self.path = os.path.join(path, 'config.ini')
+            if os.access(path, os.W_OK):
+                self.path = os.path.join(path, 'config.ini')
+                if not os.path.exists(self.path):
+                    open(self.path, 'a+').close()
         else:
             self.path = path
 
     def createConfig(self):
-
         config = ConfigParser(allow_no_value=True)
 
         while True:
-            if os.path.exists(self.path):
-                config.read_file(open(self.path))
+            # Things that have to be true
+            # config can read
+            # config can write
+            if os.access(self.path, os.W_OK) and os.access(self.path, os.R_OK):
+                config.read(self.path)
                 break
             else:
-                print('Cannot open config file. Please configure another path to configuration file')
-                self.path = input('Path to config file: ')
-                if self.path == 'c':
-                    raise UserAbort('User aborted the configuration')
+                print(self.path)
+                self.path = input('Cannot work with given path. Please specify valid path: ')
 
-        if not config.has_section('IRCSERVER'): config.add_section('IRCSERVER')
+        if not config.has_section('IRCSERVER'):
+            config.add_section('IRCSERVER')
 
         if not config.has_option('IRCSERVER', 'server') or \
                                      config.get('IRCSERVER', 'server').strip ==  \
@@ -41,8 +46,8 @@ class Config:
             try:
                 host = self.getServerAddress()
                 config.set('IRCSERVER', 'server', host)
-            except UserAbort as e: print(e)
-            sys.exit(127)
+            except UserAbort as e:
+                print(e)
 
         if not config.has_option('IRCSERVER', 'port'):
             try:
@@ -69,14 +74,8 @@ class Config:
         adminlist = self.getBotAdministrators()
         config.set('IRCADMIN', 'administrators', adminlist)
 
-        try:
-            with open(self.path, 'w') as f:
-                config.write(f)
-        except Exception as e:
-            print(e.args)
-            print(e.__class__.__name__)
-        else:
-            f.close()
+        config.write(open(self.path, 'w'))
+        return config
 
     def getServerAddress(self):
         while True:

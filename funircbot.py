@@ -19,9 +19,12 @@ def main():
     #conf.createConfig()
     plugins = dict()
     plugins['irc'] = importlib.import_module('IRC')
+    config = Config('.')
+    config.createConfig()
     irc = plugins['irc'].IRC()
     queueToIRC = queue.Queue()
     queueFromIRC = queue.Queue()
+    irc.setup(config)
     t = threading.Thread(target=irc.startup, args=[queueToIRC, queueFromIRC])
     t.start()
     while True:

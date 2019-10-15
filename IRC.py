@@ -11,27 +11,17 @@ import queue
 
 class IRC:
     def __init__(self):
-        # Set some variables which are needed to connect
-        self.ircserver = 'chat.freenode.net'
-        self.ircport = 6697
-        # getting variables from config.py in same directory
-        # if config.py does not exist, ask the user
-        if os.path.isfile(os.path.join(os.path.dirname(sys.argv[0]), 'config.py')):
-            print('Found config file.')
-            config = importlib.import_module('config')
-            self.nick = config.nick
-            self.password = config.password
-            self.channel = config.channel
-        else:
-            print('No config found. Please enter values.')
-            self.nick = input('Nickname of the Bot: ')
-            self.channel = input('Channels to join: ')
-            self.password = getpass('Bot password for nickserv: ')
-        self.encoding = 'utf-8'
-        # self.plugins is gonna save loaded plugins (see self.loadIRCPlugins)
         self.plugins = dict()
         self.queueToIRC = None
         self.queueFromIRC = None
+
+    def setup(self, config):
+        self.ircserver = config.get('IRCSERVER', 'server')
+        self.ircport = config.getint('IRCSERVER', 'port')
+        self.nick = config.get('IRCUSER', 'nick')
+        self.password = config.get('IRCUSER', 'password')
+        self.administrators = config.get('IRCADMIN', 'administrators').split(';')
+        return 0
 
     def connect(self):
         # create a socket and connect to the server
