@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+### funircbot.py
+
 # imports
 import time
 import importlib
@@ -20,17 +22,17 @@ def main():
     plugins = dict()
     plugins['irc'] = importlib.import_module('IRC')
     config = Config('.')
-    config.createConfig()
+    c = config.createConfig()
     irc = plugins['irc'].IRC()
+    irc.setup(c)
     queueToIRC = queue.Queue()
     mainQueue = queue.Queue()
-    irc.setup(config)
     t = threading.Thread(target=irc.startup, args=[queueToIRC, mainQueue])
     t.start()
     while True:
         q = mainQueue.get()
         if q == 'quit':
-            print('Got quit in my FROM IRC Queue.')
+            print('Got quit in my main queue.')
             irc.disconnect()
             t.join()
             return 0

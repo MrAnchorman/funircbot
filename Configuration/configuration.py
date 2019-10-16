@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+### configuration.py
 
 import os
 import sys
@@ -57,6 +57,14 @@ class Config:
                 sys.exit(127)
             config.set('IRCSERVER', 'port', str(port))
 
+        if not config.has_option('IRCSERVER', 'channellist'):
+            try:
+                channellist = self.getChannels()
+                config.set('IRCSERVER', 'channellist', channellist)
+            except UserAbort as e:
+                print(e)
+                sys.exit(127)
+
         if not config.has_section('IRCUSER'):
             config.add_section('IRCUSER')
 
@@ -71,8 +79,9 @@ class Config:
         if not config.has_section('IRCADMIN'):
             config.add_section('IRCADMIN')
 
-        adminlist = self.getBotAdministrators()
-        config.set('IRCADMIN', 'administrators', adminlist)
+        if not config.has_option('IRCADMIN', 'administrators') or len(config.get('IRCADMIN', 'administrators').split(';')) < 1:
+            adminlist = self.getBotAdministrators()
+            config.set('IRCADMIN', 'administrators', adminlist)
 
         config.write(open(self.path, 'w'))
         return config
@@ -104,6 +113,26 @@ class Config:
             else:
                 return port
 
+    def getChannels(self):
+        chanlist = list()
+        while True:
+            channel = input('Channel to join (c to finish list): ')             
+            if channel[:1] != '#':
+                channel = '#' + channel
+            if channel == '#c':
+                if len(chanlist) < 1:
+                    print('You have to insert at least one channel')
+                    continue
+                else:
+                    break
+            if channel != '#':
+                if channel in chanlist:
+                    print('You don\'t need to insert {} twice'.format(channel))
+                else:
+                    chanlist.append(channel)
+        return ';'.join(chanlist)
+
+
     def getBotNickname(self):
         nick = input('Bot\'s nickname: ')
         return nick
@@ -129,4 +158,4 @@ class Config:
                     else:
                         adminlist.append(adminnick)
 
-        return ';'.join(adminlist)
+        return ';'.join(adminnicklist)

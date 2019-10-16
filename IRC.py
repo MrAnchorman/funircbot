@@ -1,3 +1,5 @@
+### IRC.py
+
 import os
 import sys
 import socket
@@ -8,16 +10,17 @@ from datetime import datetime
 from getpass import getpass
 import queue
 
-
 class IRC:
     def __init__(self):
         self.plugins = dict()
         self.queueToIRC = None
-        self.queueFromIRC = None
+        self.mainQueue = None
+        self.encoding = 'UTF-8'
 
     def setup(self, config):
         self.ircserver = config.get('IRCSERVER', 'server')
         self.ircport = config.getint('IRCSERVER', 'port')
+        self.channel = config.get('IRCSERVER', 'channellist')
         self.nick = config.get('IRCUSER', 'nick')
         self.password = config.get('IRCUSER', 'password')
         self.administrators = config.get('IRCADMIN', 'administrators').split(';')
@@ -57,11 +60,13 @@ class IRC:
         '''
         This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
         '''
+        print('Nickserv asked to identify. Doing so!')
         logging.debug('Identifying myself as ' + self.nick)
-        self.sendServerMessage("PRIVMSG" + " :NICKSERV identify " + self.password + "\n")
+        self.sendServerMessage("PRIVMSG" + " NICKSERV :identify " + self.password + "\n")
 
     def joinChannel(self, channelname = None):
         # Join channel. If channelname is not given, the bot will join the channel which is given per object variable
+        print('Should join channel')
         if channelname is None:
             logging.debug('Channelname is None, i\'ll make it the default channel')
             channelname = self.channel
@@ -69,11 +74,6 @@ class IRC:
             channelname = '#' + channelname
         self.sendServerMessage("JOIN " + channelname)
         logging.debug('Joining channel ' + channelname)
-        ircmsg = ""
-        while ircmsg.find('End of /NAMES list.') != -1:
-            ircmsg = self.receiveMessage
-        self.identifyUser()
-        logging.debug('Joined channel ' + channelname)
 
     def sendServerMessage(self, message):
         # this function sends a given string to the server
@@ -128,52 +128,73 @@ class IRC:
     def run(self):
         # run forever, receive messages and do whatever you want
         logging.debug('Running...')
+        print('Run thread started')
+        self.identifyUser()
+        message = dict()
         while True:
             ircmsg = self.receiveMessage()
+            print(ircmsg)
             if ircmsg.startswith('PING :'):
                 print('Ping?', end=' ')
                 self.ping(ircmsg)
+            elif ircmsg.find('peer') != -1:
+                print('PEER FOUND!!!: ' + ircmsg)
+                logging.warning(ircmsg)
+            elif ircmsg.find('byebot') != -1:
+                self.mainQueue.put('quit')
+                break
             else:
-                messageProperties = self.getMessageProperties(ircmsg)
-                if messageProperties['messageText'] == 'byebot' and messageProperties['sender'] == 'break3r':
-                    print('Received command quit. Putting quit into FROM IRC Queue.')
-                    self.queueFromIRC.put('quit')
-                    break
-                if ircmsg.find('peer') != -1:
-                    print('PEER FOUND!!!: ' + ircmsg)
-                    logging.warning(ircmsg)
-                if ircmsg.find('reloadtest') != -1 and messagePropeties['sender'] == 'break3r':
-                    self.queueFromIRC.put('reload')
-                    self.sendChannelMessage('Test')
-                self.processMessage(messageProperties)
-        logging.debug('Left run()-Method.')
-        return True
+                message['type'] = self.getMessageType(ircmsg)
+                print(message['type'])
 
-    def getMessageProperties(self, message):
+        logging.debug('Left run()-Method.')
+        return 0
+
+    def getMessageType(self, message):
         # split the message in the parts we need
         '''
         :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
-        Ping? Pong!
         :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
-        Ping? Pong!
+        :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
+        :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
         :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
-        Ping? Pong!
+        :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
         :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :TEST
-        Ping? Pong!
         :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :DCC CHAT chat 171786923 52684
-        Ping? Pong!
+        :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##funircbot :ACTION test
+        :bre_test!~Nameles@185.64.159.168 NICK :b_test
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +v b_test
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot -v b_test
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +b *!*Nameles@185.64.159.*
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot -b *!*Nameles@185.64.159.*
+        :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
+        :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
+        :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +o b_test
+        :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
+        :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +g
         '''
-        messageProperties = dict()
         msgDict = message.split()
-        messageProperties['userhost'] = msgDict[0][1:]
-        messageProperties['sender'] = msgDict[0].split('!', 1)[0][1:]
-        messageProperties['type'] = msgDict[1]
-        messageProperties['channel'] = msgDict[2] if msgDict[2] != self.nick else messageProperties['sender']
-        messageProperties['messageText'] = ''
-        s = messageProperties['channel'] if messageProperties['channel'][:1] == '#' else self.nick
-        if message.find(s + ' :') != -1:
-            messageProperties['messageText'] = message.split(s + ' :')[1]
-        return messageProperties
+        print(msgDict)
+        if msgDict[1] == 'PRIVMSG':
+            if msgDict[3].startswith(':\x01ACTION'):
+                msgtype = 'ACTION'
+            else:
+                msgtype = 'MSG'
+            if msgDict[2].startswith('#'):
+                target = 'CHAN'
+            else:
+                target = 'PRIV'
+        elif msgDict[1] == 'NOTICE':
+            msgtype = 'NOTICE'
+            if msgDict[2].startswith('#'):
+                target = 'CHAN'
+            else:
+                target = 'PRIV'
+        else:
+            return msgDict[1]
+
+        return target + msgtype
 
     def processMessage(self, message):
         # the argument takes the dict with the splitted server message
@@ -195,9 +216,6 @@ class IRC:
             except Exception as e:
                 print(e.args)
 
-        if message['messageText'][1:] == 'arrr':
-            self.sendChannelMessage('You\'re a pirate?')
-
     def loadIRCPlugin(self, command):
         # if a command is given (messageText has : as first char)
         # let's see if there's a plugin in the plugins folder
@@ -218,13 +236,18 @@ class IRC:
              logging.warning('A plugin called ' + command + ' could not be found.')
              raise Exception('Cannot load module ' + command + '.')
 
-    def startup(self, queueToIRC, queueFromIRC):
+    def startup(self, queueToIRC, mainQueue):
         # since i tried to make this bot a threaded bot, i need to call this function
         # setting up the needed queues and running up from hereon
         self.queueToIRC = queueToIRC
-        self.queueFromIRC = queueFromIRC
+        self.mainQueue = mainQueue
         self.connect()
         self.identifyServer()
         self.joinChannel()
+        while True:
+            ircmsg = self.receiveMessage()
+            if ircmsg.find('366 Anchorman ##funircbot :End of /NAMES list.') != -1:
+                print('Joined channel')
+                break
         self.run()
         return True
