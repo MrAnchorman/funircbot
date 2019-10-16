@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+### configuration.py
 
 import os
 import sys
@@ -15,35 +15,39 @@ class UserAbort(Exception):
 
 class Config:
     def __init__(self, path):
-        self.path = path
-
+        if os.path.isdir(path):
+            if os.access(path, os.W_OK):
+                self.path = os.path.join(path, 'config.ini')
+                if not os.path.exists(self.path):
+                    open(self.path, 'a+').close()
+        else:
+            self.path = path
 
     def createConfig(self):
-
         config = ConfigParser(allow_no_value=True)
 
         while True:
-            if os.path.exists(self.path):
-                config.read_file(open(self.path))
+            # Things that have to be true
+            # config can read
+            # config can write
+            if os.access(self.path, os.W_OK) and os.access(self.path, os.R_OK):
+                config.read(self.path)
                 break
             else:
-                print('Cannot open config file. Please configure another path to configuration file')
-                self.path = input('Path to config file: ')
-                if self.path == 'c':
-                    sys.exit(0)
-                continue
-
+                print(self.path)
+                self.path = input('Cannot work with given path. Please specify valid path: ')
 
         if not config.has_section('IRCSERVER'):
             config.add_section('IRCSERVER')
 
-        if not config.has_option('IRCSERVER', 'server') or config.get('IRCSERVER', 'server').strip == '':
+        if not config.has_option('IRCSERVER', 'server') or \
+                                     config.get('IRCSERVER', 'server').strip ==  \
+                                     '':
             try:
                 host = self.getServerAddress()
                 config.set('IRCSERVER', 'server', host)
             except UserAbort as e:
                 print(e)
-                sys.exit(127)
 
         if not config.has_option('IRCSERVER', 'port'):
             try:
@@ -53,27 +57,34 @@ class Config:
                 sys.exit(127)
             config.set('IRCSERVER', 'port', str(port))
 
+        if not config.has_option('IRCSERVER', 'channellist'):
+            try:
+                channellist = self.getChannels()
+                config.set('IRCSERVER', 'channellist', channellist)
+            except UserAbort as e:
+                print(e)
+                sys.exit(127)
+
         if not config.has_section('IRCUSER'):
             config.add_section('IRCUSER')
 
         if not config.has_option('IRCUSER', 'nick'):
-            config.set('IRCUSER', 'nick', input('Bot\'s nickname: '))
+            nick = self.getBotNickname()
+            config.set('IRCUSER', 'nick', nick)
 
         if not config.has_option('IRCUSER', 'password'):
-            config.set('IRCUSER', 'password', input('Bot\'s password (Warning: stored in clear text in config file!): '))
+            botpassword = self.getBotPassword()
+            config.set('IRCUSER', 'password', botpassword)
 
         if not config.has_section('IRCADMIN'):
             config.add_section('IRCADMIN')
 
-        adminlist = self.getBotAdministrators()
-        config.set('IRCADMIN', 'administrators', adminlist)
+        if not config.has_option('IRCADMIN', 'administrators') or len(config.get('IRCADMIN', 'administrators').split(';')) < 1:
+            adminlist = self.getBotAdministrators()
+            config.set('IRCADMIN', 'administrators', adminlist)
 
-        try:
-            with open(self.path + '2', 'w') as f:
-                config.write(f)
-        except Exception as e:
-            print(e.args)
-            print(e.__class__.__name__)
+        config.write(open(self.path, 'w'))
+        return config
 
     def getServerAddress(self):
         while True:
@@ -102,6 +113,35 @@ class Config:
             else:
                 return port
 
+    def getChannels(self):
+        chanlist = list()
+        while True:
+            channel = input('Channel to join (c to finish list): ')             
+            if channel[:1] != '#':
+                channel = '#' + channel
+            if channel == '#c':
+                if len(chanlist) < 1:
+                    print('You have to insert at least one channel')
+                    continue
+                else:
+                    break
+            if channel != '#':
+                if channel in chanlist:
+                    print('You don\'t need to insert {} twice'.format(channel))
+                else:
+                    chanlist.append(channel)
+        return ';'.join(chanlist)
+
+
+    def getBotNickname(self):
+        nick = input('Bot\'s nickname: ')
+        return nick
+
+    def getBotPassword(self):
+        pw = input('Bot\'s password: ')
+        return pw
+
+
     def getBotAdministrators(self):
         adminlist = list()
         while True:
@@ -118,12 +158,4 @@ class Config:
                     else:
                         adminlist.append(adminnick)
 
-        return ';'.join(adminlist)
-
-
-def main():
-    c = Config('test.txt')
-    c.createConfig()
-
-if __name__ == '__main__':
-    main()
+        return ';'.join(adminnicklist)
