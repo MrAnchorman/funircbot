@@ -10,6 +10,14 @@ from datetime import datetime
 from getpass import getpass
 import queue
 
+logfile = './logs/funircbot.log'
+logging.basicConfig(
+filename=logfile,
+level = logging.DEBUG,
+style = '{',
+format = '{asctime} [{levelname:7}] {message}',
+datefmt = '%d.%m.%Y %H:%M:%S')
+
 class IRC:
     def __init__(self):
         self.plugins = dict()
@@ -18,11 +26,18 @@ class IRC:
         self.encoding = 'UTF-8'
 
     def setup(self, config):
+        logging.debug('Setting up Class IRC')
+        logging.debug('Setup IRC Server')
         self.ircserver = config.get('IRCSERVER', 'server')
+        logging.debug('Setting up IRC Server Port')
         self.ircport = config.getint('IRCSERVER', 'port')
+        logging.debug('Setting up Channellist')
         self.channel = config.get('IRCSERVER', 'channellist')
+        logging.debug('Setting up IRC Nickname')
         self.nick = config.get('IRCUSER', 'nick')
+        logging.debug('Setting up Nickserv password')
         self.password = config.get('IRCUSER', 'password')
+        logging.debug('Setting up Administrators')
         self.administrators = config.get('IRCADMIN', 'administrators').split(';')
         return 0
 
@@ -34,7 +49,6 @@ class IRC:
                                                                     self.ircserver,
                                                                     port =
                                                                     self.ircport))
-
         logging.debug("Wrapping socket to SSL")
         # setting up a context to verify the hostname 
         context = ssl.SSLContext()
@@ -44,7 +58,13 @@ class IRC:
         self.ircsock = context.wrap_socket(s, server_hostname=self.ircserver)
 
         # connect
-        self.ircsock.connect((self.ircserver, self.ircport))
+        logging.debug('Connecting to {} via port {}'.format(self.ircserver, self.ircport))
+        try:
+            self.ircsock.connect((self.ircserver, self.ircport))
+        except Exception as e:
+            print('Cannot connect to server. Exiting program.')
+            logging.critical('Cannot connect to server: {}'.format(e.args))
+            sys.exit(127)
 
     def identifyServer(self):
         # after connecting to the server we need to send the following string
@@ -66,12 +86,12 @@ class IRC:
 
     def joinChannel(self, channelname = None):
         # Join channel. If channelname is not given, the bot will join the channel which is given per object variable
-        print('Should join channel')
         if channelname is None:
             logging.debug('Channelname is None, i\'ll make it the default channel')
             channelname = self.channel
         if channelname[:1] != '#':
             channelname = '#' + channelname
+        logging.debug('Joining channel {}'.format(channelname))
         self.sendServerMessage("JOIN " + channelname)
         logging.debug('Joining channel ' + channelname)
 
@@ -92,7 +112,7 @@ class IRC:
         if target == None:
             target = self.channel
         try:
-            self.sendServerMessage("PRIVMSG " + target + " :" + message)
+            self.sendServerMessage("PRIVMSG {} :{}".format(target, message))
         except Exception as e:
             return False
         return True
@@ -107,6 +127,7 @@ class IRC:
         # answer to ping from the server
         ret = message.split()[1]
         ret = "PONG " + ret
+        logging.debug('Running ping function. Answering with {}'.format(ret))
         self.sendServerMessage(ret)
         print("Pong!")
 
@@ -114,8 +135,13 @@ class IRC:
         # send the quit command with a quit message
         # receiving the quit answer from the server
         self.sendServerMessage("QUIT :My Master told me to leave.")
-        m = self.receiveMessage()
         logging.debug('Got the Disconnectmessage. ' + m.split(':')[1])
+        while True:
+            m = self.receive()
+            print(m)
+            if not m:
+                break
+        self.ircsock.close()
         '''
         I was told to go. I go
         :MrAnchorman!~MrAnchorm@pgno.dvag.com QUIT :Client Quit
@@ -167,6 +193,40 @@ class IRC:
                     self.onMode(ircmsg)
         logging.debug('Left run()-Method.')
         return 0
+
+    def onChanMsg(self, ircmsg):
+        msgDict = ircmsg.split()
+        if msgDict[3].startswith(':byebot'):
+            self.mainQueue.put('quit')
+    def onChanAction(self, ircmsg):
+        pass
+
+    def onChanAction(self, ircmsg):
+        pass
+
+    def onPrivMsg(self, ircmsg):
+        pass
+
+    def onPrivNotice(self, ircmsg):
+        pass
+
+    def onChanNotice(self, ircmsg):
+        pass
+
+    def onJoin(self, ircmsg):
+        pass
+
+    def onPart(self, ircmsg):
+        pass
+
+    def onQuit(self, ircmsg):
+        pass
+
+    def onKick(self, ircmsg):
+        pass
+
+    def onMode(self, ircmsg):
+        pass
 
     def getMessageType(self, message):
         # split the message in the parts we need
@@ -270,14 +330,3 @@ class IRC:
         self.run()
         return 0
 
-        def onChanMsg(self, ircmsg)
-        def onChanAction(self, ircmsg )
-        def onPrivMsg(self, ircmsg )
-        def onPrivAction(self, ircmsg )
-        def onPrivNotice(self, ircmsg )
-        def onChanNotice(self, ircmsg )
-        def onJoin(self, ircmsg )
-        def onPart(self, ircmsg )
-        def onQuit(self, ircmsg )
-        def onKick(self, ircmsg )
-        def onMode(self, ircmsg )
