@@ -140,13 +140,31 @@ class IRC:
             elif ircmsg.find('peer') != -1:
                 print('PEER FOUND!!!: ' + ircmsg)
                 logging.warning(ircmsg)
-            elif ircmsg.find('byebot') != -1:
-                self.mainQueue.put('quit')
-                break
             else:
                 message['type'] = self.getMessageType(ircmsg)
                 print(message['type'])
-
+                if message['type'] == 'CHANMSG':
+                    self.onChanMsg(ircmsg)
+                if message['type'] == 'CHANACTION':
+                    self.onChanAction(ircmsg)
+                if message['type'] == 'PRIVMSG':
+                    self.onPrivMsg(ircmsg)
+                if message['type'] == 'PRIVACTION':
+                    self.onPrivAction(ircmsg)
+                if message['type'] == 'PRIVNOTICE':
+                    self.onPrivNotice(ircmsg)
+                if message['type'] == 'CHANNOTICE':
+                    self.onChanNotice(ircmsg)
+                if message['type'] == 'JOIN':
+                    self.onJoin(ircmsg)
+                if message['type'] == 'PART':
+                    self.onPart(ircmsg)
+                if message['type'] == 'QUIT':
+                    self.onQuit(ircmsg)
+                if message['type'] == 'KICK':
+                    self.onKick(ircmsg)
+                if message['type'] == 'MODE':
+                    self.onMode(ircmsg)
         logging.debug('Left run()-Method.')
         return 0
 
@@ -250,4 +268,16 @@ class IRC:
                 print('Joined channel')
                 break
         self.run()
-        return True
+        return 0
+
+        def onChanMsg(self, ircmsg)
+        def onChanAction(self, ircmsg )
+        def onPrivMsg(self, ircmsg )
+        def onPrivAction(self, ircmsg )
+        def onPrivNotice(self, ircmsg )
+        def onChanNotice(self, ircmsg )
+        def onJoin(self, ircmsg )
+        def onPart(self, ircmsg )
+        def onQuit(self, ircmsg )
+        def onKick(self, ircmsg )
+        def onMode(self, ircmsg )
