@@ -135,7 +135,6 @@ class IRC:
         # send the quit command with a quit message
         # receiving the quit answer from the server
         self.sendServerMessage("QUIT :My Master told me to leave.")
-        logging.debug('Got the Disconnectmessage. ' + m.split(':')[1])
         while True:
             m = self.receive()
             print(m)
@@ -187,6 +186,8 @@ class IRC:
                     self.onPart(ircmsg)
                 if message['type'] == 'QUIT':
                     self.onQuit(ircmsg)
+                if message['type'] == 'NICK':
+                    self.onNick(ircmsg)
                 if message['type'] == 'KICK':
                     self.onKick(ircmsg)
                 if message['type'] == 'MODE':
@@ -195,62 +196,70 @@ class IRC:
         return 0
 
     def onChanMsg(self, ircmsg):
+        # :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
         msgDict = ircmsg.split()
         if msgDict[3].startswith(':byebot'):
             self.mainQueue.put('quit')
     def onChanAction(self, ircmsg):
+        # :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
         pass
 
-    def onChanAction(self, ircmsg):
+    def onPrivAction(self, ircmsg):
+        # :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
         pass
 
     def onPrivMsg(self, ircmsg):
+        # :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
         pass
 
     def onPrivNotice(self, ircmsg):
+        # :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
         pass
 
     def onChanNotice(self, ircmsg):
+        # :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
         pass
 
     def onJoin(self, ircmsg):
+        # :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
         pass
 
     def onPart(self, ircmsg):
+        # :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
         pass
 
     def onQuit(self, ircmsg):
+        # :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
+        pass
+
+    def onNick(self, ircmsg):
+        # :b_t!~b_usernam@p4FF0ABD8.dip0.t-ipconnect.de NICK :bre_test
         pass
 
     def onKick(self, ircmsg):
+        # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
+        # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :kicking
         pass
 
     def onMode(self, ircmsg):
-        pass
-
-    def getMessageType(self, message):
-        # split the message in the parts we need
         '''
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
-        :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
-        :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
-        :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
-        :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :TEST
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :DCC CHAT chat 171786923 52684
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##funircbot :ACTION test
-        :bre_test!~Nameles@185.64.159.168 NICK :b_test
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +v b_test
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot -v b_test
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +b *!*Nameles@185.64.159.*
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot -b *!*Nameles@185.64.159.*
         :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
-        :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
-        :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +o b_test
-        :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +g
+        '''
+        pass
+
+    def getMessageType(self, message):
+        # split the message in the parts we need
+        '''
+        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :TEST
+        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :DCC CHAT chat 171786923 52684
+        :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##funircbot :ACTION test
+
         '''
         msgDict = message.split()
         print(msgDict)
