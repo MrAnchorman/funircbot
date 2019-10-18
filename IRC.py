@@ -10,13 +10,11 @@ from datetime import datetime
 from getpass import getpass
 import queue
 
-logfile = './logs/funircbot.log'
-logging.basicConfig(
-filename=logfile,
-level = logging.DEBUG,
-style = '{',
-format = '{asctime} [{levelname:7}] {message}',
-datefmt = '%d.%m.%Y %H:%M:%S')
+class Disconnected(Exception):
+    def __init__(self):
+        super().__init__()
+        
+
 
 class IRC:
     def __init__(self):
@@ -135,12 +133,6 @@ class IRC:
         # send the quit command with a quit message
         # receiving the quit answer from the server
         self.sendServerMessage("QUIT :My Master told me to leave.")
-        while True:
-            m = self.receive()
-            print(m)
-            if not m:
-                break
-        self.ircsock.close()
         '''
         I was told to go. I go
         :MrAnchorman!~MrAnchorm@pgno.dvag.com QUIT :Client Quit
@@ -166,7 +158,10 @@ class IRC:
                 print('PEER FOUND!!!: ' + ircmsg)
                 logging.warning(ircmsg)
             else:
-                message['type'] = self.getMessageType(ircmsg)
+                try:
+                    message['type'] = self.getMessageType(ircmsg)
+                except Disconnected:
+                    break
                 print(message['type'])
                 if message['type'] == 'CHANMSG':
                     self.onChanMsg(ircmsg)
@@ -200,6 +195,7 @@ class IRC:
         msgDict = ircmsg.split()
         if msgDict[3].startswith(':byebot'):
             self.mainQueue.put('quit')
+
     def onChanAction(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
         pass
@@ -262,6 +258,8 @@ class IRC:
 
         '''
         msgDict = message.split()
+        if len(msgDict) < 1:
+            raise Disconnected
         print(msgDict)
         if msgDict[1] == 'PRIVMSG':
             if msgDict[3].startswith(':\x01ACTION'):

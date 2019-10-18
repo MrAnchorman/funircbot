@@ -5,6 +5,7 @@ import sys
 import logging
 import socket
 from configparser import ConfigParser
+from getpass import getpass
 
 class UserAbort(Exception):
     def __init__(self, msg = None):
@@ -116,15 +117,15 @@ class Config:
     def getChannels(self):
         chanlist = list()
         while True:
-            channel = input('Channel to join (c to finish list): ')             
-            if channel[:1] != '#':
-                channel = '#' + channel
-            if channel == '#c':
+            channel = input('Channel to join (c to finish list): ')
+            if channel == 'c':
                 if len(chanlist) < 1:
                     print('You have to insert at least one channel')
                     continue
                 else:
                     break
+            if channel[:1] != '#':
+                channel = '#' + channel
             if channel != '#':
                 if channel in chanlist:
                     print('You don\'t need to insert {} twice'.format(channel))
@@ -138,7 +139,7 @@ class Config:
         return nick
 
     def getBotPassword(self):
-        pw = input('Bot\'s password: ')
+        pw = getpass('Bot\'s password: ')
         return pw
 
 
@@ -158,4 +159,4 @@ class Config:
                     else:
                         adminlist.append(adminnick)
 
-        return ';'.join(adminnicklist)
+        return ';'.join(adminlist)
