@@ -1,4 +1,4 @@
-### IRC.py
+## IRC.py
 
 import os
 import sys
@@ -9,11 +9,11 @@ import importlib
 from datetime import datetime
 from getpass import getpass
 import queue
+import time # used for time.sleep if channel is on invite
 
 class Disconnected(Exception):
     def __init__(self):
         super().__init__()
-        
 
 
 class IRC:
@@ -25,12 +25,12 @@ class IRC:
 
     def setup(self, config):
         logging.debug('Setting up Class IRC')
-        logging.debug('Setup IRC Server')
+        logging.debug('Setup IRC Server URL')
         self.ircserver = config.get('IRCSERVER', 'server')
         logging.debug('Setting up IRC Server Port')
         self.ircport = config.getint('IRCSERVER', 'port')
         logging.debug('Setting up Channellist')
-        self.channel = config.get('IRCSERVER', 'channellist')
+        self.channel = config.get('IRCSERVER', 'channellist').split(';')[0]
         logging.debug('Setting up IRC Nickname')
         self.nick = config.get('IRCUSER', 'nick')
         logging.debug('Setting up Nickserv password')
@@ -125,9 +125,9 @@ class IRC:
         # answer to ping from the server
         ret = message.split()[1]
         ret = "PONG " + ret
-        logging.debug('Running ping function. Answering with {}'.format(ret))
         self.sendServerMessage(ret)
         print("Pong!")
+        return 0
 
     def disconnect(self):
         # send the quit command with a quit message
@@ -140,14 +140,14 @@ class IRC:
         ERROR :Closing Link: pgno.dvag.com (Client Quit)
         '''
         logging.debug('Closed connection')
-        return True
+        print('Disconnect')
+        return 0
 
     def run(self):
         # run forever, receive messages and do whatever you want
         logging.debug('Running...')
         print('Run thread started')
         self.identifyUser()
-        message = dict()
         while True:
             ircmsg = self.receiveMessage()
             print(ircmsg)
@@ -158,83 +158,111 @@ class IRC:
                 print('PEER FOUND!!!: ' + ircmsg)
                 logging.warning(ircmsg)
             else:
+                message = dict()
                 try:
                     message['type'] = self.getMessageType(ircmsg)
+                    message.update(self.getGlobalIrcmsgProperties(ircmsg))
+                    message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
                 except Disconnected:
                     break
-                print(message['type'])
                 if message['type'] == 'CHANMSG':
-                    self.onChanMsg(ircmsg)
+                    message.update(self.onChanMsg(message))
                 if message['type'] == 'CHANACTION':
-                    self.onChanAction(ircmsg)
+                    message.update(self.onChanAction(message))
                 if message['type'] == 'PRIVMSG':
-                    self.onPrivMsg(ircmsg)
+                    message.update(self.onPrivMsg(message))
                 if message['type'] == 'PRIVACTION':
-                    self.onPrivAction(ircmsg)
+                    message.update(self.onPrivAction(message))
                 if message['type'] == 'PRIVNOTICE':
-                    self.onPrivNotice(ircmsg)
+                    message.update(self.onPrivNotice(message))
                 if message['type'] == 'CHANNOTICE':
-                    self.onChanNotice(ircmsg)
+                    message.update(self.onChanNotice(message))
                 if message['type'] == 'JOIN':
-                    self.onJoin(ircmsg)
+                    message.update(self.onJoin(message))
                 if message['type'] == 'PART':
-                    self.onPart(ircmsg)
+                    message.update(self.onPart(message))
                 if message['type'] == 'QUIT':
-                    self.onQuit(ircmsg)
+                    message.update(self.onQuit(message))
                 if message['type'] == 'NICK':
-                    self.onNick(ircmsg)
+                    message.update(self.onNick(message))
                 if message['type'] == 'KICK':
-                    self.onKick(ircmsg)
+                    message.update(self.onKick(message))
                 if message['type'] == 'MODE':
-                    self.onMode(ircmsg)
+                    message.update(self.onMode(message))
+                print(message)
         logging.debug('Left run()-Method.')
         return 0
 
-    def onChanMsg(self, ircmsg):
+    def getSelectiveIrcmsgProperties(self, ircmsg, type):
+        print('in Selective Properties')
+        msg = dict()
+        if type == 'NICK':
+            msg['newnick'] = ircmsg.rsplit(':')[1]
+            return msg
+        if type == 'QUIT':
+            msg['quitmsg'] = ircmsg.split(':Quit:')[1]
+            return msg
+        ircmsg = ircmsg.split()
+
+        return msg
+
+    def onChanMsg(self, message):
         # :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
-        msgDict = ircmsg.split()
-        if msgDict[3].startswith(':byebot'):
+        if message.startswith('byebot'):
             self.mainQueue.put('quit')
+        return dict()
 
     def onChanAction(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
-        pass
-
-    def onPrivAction(self, ircmsg):
-        # :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
+        return dict()
         pass
 
     def onPrivMsg(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
+        return dict()
+        pass
+
+    def onPrivAction(self, ircmsg):
+        # :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
+        return dict()
         pass
 
     def onPrivNotice(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
+        # :NickServ!NickServ@services. NOTICE Anchorman :You are now identified for Anchorman.
+        #This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
+        return dict()
         pass
 
     def onChanNotice(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
+        return dict()
         pass
 
     def onJoin(self, ircmsg):
         # :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
+        return dict()
         pass
 
     def onPart(self, ircmsg):
         # :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
+        return dict()
         pass
 
     def onQuit(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
+        return dict()
         pass
 
     def onNick(self, ircmsg):
         # :b_t!~b_usernam@p4FF0ABD8.dip0.t-ipconnect.de NICK :bre_test
+        return dict()
         pass
 
     def onKick(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :kicking
+        return dict()
         pass
 
     def onMode(self, ircmsg):
@@ -247,7 +275,25 @@ class IRC:
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +o b_test
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +g
         '''
+        return dict()
         pass
+
+    def getGlobalIrcmsgProperties(self, ircmsg):
+        if ircmsg.startswith('ERROR :'):
+            return dict()
+        m = ircmsg.split()
+        msg = dict()
+        msg['user'] = m[0][1:]
+        msg['usernick'] = m[0].split('!')[0][1:]
+        msg['username'] = m[0].split('!')[1].split('@')[0]
+        if msg['username'].startswith('~'):
+            msg['username'] = msg['username'][1:]
+        msg['userdomain'] = m[0].split('@')[1]
+        msg['useraccount'] = ''
+        if msg['userdomain'].find('/') != -1:
+            msg['userhost'] = msg['userdomain'].split('/')[0]
+            msg['useraccount'] = msg['user'].split('/')[1]
+        return msg
 
     def getMessageType(self, message):
         # split the message in the parts we need
@@ -260,7 +306,6 @@ class IRC:
         msgDict = message.split()
         if len(msgDict) < 1:
             raise Disconnected
-        print(msgDict)
         if msgDict[1] == 'PRIVMSG':
             if msgDict[3].startswith(':\x01ACTION'):
                 msgtype = 'ACTION'
@@ -331,6 +376,10 @@ class IRC:
         self.joinChannel()
         while True:
             ircmsg = self.receiveMessage()
+            if ircmsg.find('473 Anchorman ##funircbot :Cannot join channel (+i) - you must be invited') != -1:
+                print('THE CHANNEL IS ON INVITE!')
+                time.sleep(5)
+                self.joinChannel()
             if ircmsg.find('366 Anchorman ##funircbot :End of /NAMES list.') != -1:
                 print('Joined channel')
                 break
