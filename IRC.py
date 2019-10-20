@@ -1,15 +1,14 @@
 ## IRC.py
 
-import os
-import sys
-import socket
-import ssl
-import logging
-import importlib
-from datetime import datetime
-from getpass import getpass
-import queue
+import os # check pathes for existence
+import sys # used for exit
+import socket # socket to irc
+import ssl # ssl context
+import logging # logging
+import importlib # used to import plugins
+import queue # used for queue to and from irc to main thread
 import time # used for time.sleep if channel is on invite
+import threading
 
 class Disconnected(Exception):
     def __init__(self):
@@ -37,6 +36,7 @@ class IRC:
         self.password = config.get('IRCUSER', 'password')
         logging.debug('Setting up Administrators')
         self.administrators = config.get('IRCADMIN', 'administrators').split(';')
+        self.commandLabel = config.get('GLOBAL', 'command label')
         return 0
 
     def connect(self):
@@ -161,10 +161,13 @@ class IRC:
                 message = dict()
                 try:
                     message['type'] = self.getMessageType(ircmsg)
-                    message.update(self.getGlobalIrcmsgProperties(ircmsg))
-                    message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
                 except Disconnected:
                     break
+                if message['type'] == ':Closing':
+                    message['content'] = ircmsg.rsplit('(')[1][:-1]
+                    break
+                message.update(self.getGlobalIrcmsgProperties(ircmsg))
+                message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
                 if message['type'] == 'CHANMSG':
                     message.update(self.onChanMsg(message))
                 if message['type'] == 'CHANACTION':
@@ -189,81 +192,125 @@ class IRC:
                     message.update(self.onKick(message))
                 if message['type'] == 'MODE':
                     message.update(self.onMode(message))
-                print(message)
+        print('Left run()-Method.')
         logging.debug('Left run()-Method.')
         return 0
 
+    def getMessageType(self, message):
+            # split the message in the parts we need
+            '''
+            :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :TEST
+            :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :DCC CHAT chat 171786923 52684
+            :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##funircbot :ACTION test
+
+            '''
+            msgDict = message.split()
+            if len(msgDict) < 1:
+                raise Disconnected
+            if msgDict[1] == 'PRIVMSG':
+                if msgDict[3].startswith(':\x01ACTION'):
+                    msgtype = 'ACTION'
+                else:
+                    msgtype = 'MSG'
+                if msgDict[2].startswith('#'):
+                    target = 'CHAN'
+                else:
+                    target = 'PRIV'
+            elif msgDict[1] == 'NOTICE':
+                msgtype = 'NOTICE'
+                if msgDict[2].startswith('#'):
+                    target = 'CHAN'
+                else:
+                    target = 'PRIV'
+            else:
+                return msgDict[1]
+
+            return target + msgtype
+
+    def getGlobalIrcmsgProperties(self, ircmsg):
+            if ircmsg.startswith('ERROR :'):
+                return dict()
+            m = ircmsg.split()
+            msg = dict()
+            msg['user'] = m[0][1:]
+            msg['usernick'] = m[0].split('!')[0][1:]
+            msg['username'] = m[0].split('!')[1].split('@')[0]
+            if msg['username'].startswith('~'):
+                msg['username'] = msg['username'][1:]
+            msg['userdomain'] = m[0].split('@')[1]
+            msg['useraccount'] = ''
+            if msg['userdomain'].find('/') != -1:
+                msg['userhost'] = msg['userdomain'].split('/')[0]
+                msg['useraccount'] = msg['user'].split('/')[1]
+            return msg
+
     def getSelectiveIrcmsgProperties(self, ircmsg, type):
-        print('in Selective Properties')
         msg = dict()
         if type == 'NICK':
             msg['newnick'] = ircmsg.rsplit(':')[1]
             return msg
         if type == 'QUIT':
-            msg['quitmsg'] = ircmsg.split(':Quit:')[1]
+            msg['quitmsg'] = ' '.join(ircmsg[2:])
             return msg
         ircmsg = ircmsg.split()
-
+        msg['channel'] = ircmsg[2]
+        msg['content'] = ' '.join(ircmsg[3:])[1:]
+        if msg['content'].startswith('\x01ACTION'):
+            msg['content'] = msg['content'][8:][:-1]
+        if type == 'MODE':
+            msg['activate'] = True if ircmsg[3][:1] == '+' else False
         return msg
 
     def onChanMsg(self, message):
         # :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##gitbottest :Testnachricht
-        if message.startswith('byebot'):
+        if message['content'].startswith('byebot') and message['usernick'] in self.administrators:
             self.mainQueue.put('quit')
+        if message['content'].startswith(self.commandLabel):
+            threading.Thread(target=self.processCommand, args=(message,)).start()
         return dict()
 
     def onChanAction(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
         return dict()
-        pass
 
     def onPrivMsg(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
         return dict()
-        pass
 
     def onPrivAction(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
         return dict()
-        pass
 
     def onPrivNotice(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
         # :NickServ!NickServ@services. NOTICE Anchorman :You are now identified for Anchorman.
         #This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
         return dict()
-        pass
 
     def onChanNotice(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
         return dict()
-        pass
 
     def onJoin(self, ircmsg):
         # :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
         return dict()
-        pass
 
     def onPart(self, ircmsg):
         # :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
         return dict()
-        pass
 
     def onQuit(self, ircmsg):
         # :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
         return dict()
-        pass
 
     def onNick(self, ircmsg):
         # :b_t!~b_usernam@p4FF0ABD8.dip0.t-ipconnect.de NICK :bre_test
         return dict()
-        pass
 
     def onKick(self, ircmsg):
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :kicking
         return dict()
-        pass
 
     def onMode(self, ircmsg):
         '''
@@ -276,95 +323,7 @@ class IRC:
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +g
         '''
         return dict()
-        pass
-
-    def getGlobalIrcmsgProperties(self, ircmsg):
-        if ircmsg.startswith('ERROR :'):
-            return dict()
-        m = ircmsg.split()
-        msg = dict()
-        msg['user'] = m[0][1:]
-        msg['usernick'] = m[0].split('!')[0][1:]
-        msg['username'] = m[0].split('!')[1].split('@')[0]
-        if msg['username'].startswith('~'):
-            msg['username'] = msg['username'][1:]
-        msg['userdomain'] = m[0].split('@')[1]
-        msg['useraccount'] = ''
-        if msg['userdomain'].find('/') != -1:
-            msg['userhost'] = msg['userdomain'].split('/')[0]
-            msg['useraccount'] = msg['user'].split('/')[1]
-        return msg
-
-    def getMessageType(self, message):
-        # split the message in the parts we need
-        '''
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :TEST
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :DCC CHAT chat 171786923 52684
-        :break3r!~Nameless@unaffiliated/break3r PRIVMSG ##funircbot :ACTION test
-
-        '''
-        msgDict = message.split()
-        if len(msgDict) < 1:
-            raise Disconnected
-        if msgDict[1] == 'PRIVMSG':
-            if msgDict[3].startswith(':\x01ACTION'):
-                msgtype = 'ACTION'
-            else:
-                msgtype = 'MSG'
-            if msgDict[2].startswith('#'):
-                target = 'CHAN'
-            else:
-                target = 'PRIV'
-        elif msgDict[1] == 'NOTICE':
-            msgtype = 'NOTICE'
-            if msgDict[2].startswith('#'):
-                target = 'CHAN'
-            else:
-                target = 'PRIV'
-        else:
-            return msgDict[1]
-
-        return target + msgtype
-
-    def processMessage(self, message):
-        # the argument takes the dict with the splitted server message
-        if message['messageText'][:1] == ':' and message['messageText'][1:2] != ' ' and message['messageText'][1:2] != ':':
-            command = message['messageText'].split()[0][1:]
-            try:
-                self.sendChannelMessage('I have a message in my queue: ' + self.queueToIRC.get(False, 5))
-                self.queueToIRC.task_done()
-            except queue.Empty as q:
-                pass
-            try:
-                self.plugins[command] = self.loadIRCPlugin(command)
-                if self.plugins[command] == False:
-                    self.plugins.pop(command)
-                else:
-                    output = self.plugins[command].run(message)
-                if isinstance(output, str):
-                    self.sendChannelMessage(output, message['channel'])
-            except Exception as e:
-                print(e.args)
-
-    def loadIRCPlugin(self, command):
-        # if a command is given (messageText has : as first char)
-        # let's see if there's a plugin in the plugins folder
-        # if there's such a file, load (or reload) the plugin
-        # and call it
-        print('I should load a plugin. Command is: ' + command)
-        commandFile = command + '.py'
-        if command in self.plugins.keys():
-            if commandFile in os.listdir(os.path.join('.', 'plugins')):
-                logging.debug('Plugin ' + command + ' reloaded.')
-                return importlib.reload(self.plugins[command])
-            else:
-                return False
-        elif commandFile in os.listdir(os.path.join('.', 'plugins')):
-            logging.debug('Plugin ' + command + ' loaded.')
-            return importlib.import_module('.' + command, 'plugins')
-        else:
-             logging.warning('A plugin called ' + command + ' could not be found.')
-             raise Exception('Cannot load module ' + command + '.')
+       return 0
 
     def startup(self, queueToIRC, mainQueue):
         # since i tried to make this bot a threaded bot, i need to call this function

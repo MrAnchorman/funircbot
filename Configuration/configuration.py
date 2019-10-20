@@ -84,6 +84,13 @@ class Config:
             adminlist = self.getBotAdministrators()
             config.set('IRCADMIN', 'administrators', adminlist)
 
+        if not config.has_section('GLOBAL'):
+            config.add_section('GLOBAL')
+
+        if not config.has_option('GLOBAL', 'Command Label'):
+            label = self.getCommandLabel()
+            config.set('GLOBAL', 'Command label', label)
+
         config.write(open(self.path, 'w'))
         return config
 
@@ -160,3 +167,7 @@ class Config:
                         adminlist.append(adminnick)
 
         return ';'.join(adminlist)
+
+    def getCommandLabel(self):
+        label = input('Enter a char which identifies commands (like !seen or ,seen)')
+        return label

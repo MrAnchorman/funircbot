@@ -5,11 +5,11 @@ this is just a plugin for the twitch bot. So it only needs a function called run
 The message parameter gets the whole input of the command, so it can do whatever it wants with the information
 '''
 
-def run(message):
-        x = message['messageText'].split()
+def run(message, socket):
+        x = message['content'].split()
         r = random.randint(1,2)
         if r == 1:
-                addon = message['sender'] + ' misses! HAHA!'
+                addon = message['usernick'] + ' misses! HAHA!'
         else:
                 addon = 'HIT!!!'
 
@@ -22,4 +22,4 @@ def run(message):
                 target = 'me'
                 addon = 'I can catch it and I throw it back. HIT!'
 
-        return message['sender'] + ' throws a tomatoe @ ' + target + '! ' + addon
+        return message['usernick'] + ' throws a tomatoe @ ' + target + '! ' + addon
