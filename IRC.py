@@ -18,7 +18,7 @@ class Disconnected(Exception):
 class IRC:
     def __init__(self):
         self.plugins = dict()
-        self.queueToIRC = None
+        self.IRCQueue = None
         self.mainQueue = None
         self.encoding = 'UTF-8'
 
@@ -167,31 +167,33 @@ class IRC:
                     message['content'] = ircmsg.rsplit('(')[1][:-1]
                     break
                 message.update(self.getGlobalIrcmsgProperties(ircmsg))
-                message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
-                if message['type'] == 'CHANMSG':
-                    message.update(self.onChanMsg(message))
-                if message['type'] == 'CHANACTION':
-                    message.update(self.onChanAction(message))
-                if message['type'] == 'PRIVMSG':
-                    message.update(self.onPrivMsg(message))
-                if message['type'] == 'PRIVACTION':
-                    message.update(self.onPrivAction(message))
-                if message['type'] == 'PRIVNOTICE':
-                    message.update(self.onPrivNotice(message))
-                if message['type'] == 'CHANNOTICE':
-                    message.update(self.onChanNotice(message))
-                if message['type'] == 'JOIN':
-                    message.update(self.onJoin(message))
-                if message['type'] == 'PART':
-                    message.update(self.onPart(message))
-                if message['type'] == 'QUIT':
-                    message.update(self.onQuit(message))
-                if message['type'] == 'NICK':
-                    message.update(self.onNick(message))
-                if message['type'] == 'KICK':
-                    message.update(self.onKick(message))
-                if message['type'] == 'MODE':
-                    message.update(self.onMode(message))
+                if message['usernick'] != self.nick:
+                    message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
+                    if message['type'] == 'CHANMSG':
+                        message.update(self.onChanMsg(message))
+                    if message['type'] == 'CHANACTION':
+                        message.update(self.onChanAction(message))
+                    if message['type'] == 'PRIVMSG':
+                        message.update(self.onPrivMsg(message))
+                    if message['type'] == 'PRIVACTION':
+                        message.update(self.onPrivAction(message))
+                    if message['type'] == 'PRIVNOTICE':
+                        message.update(self.onPrivNotice(message))
+                    if message['type'] == 'CHANNOTICE':
+                        message.update(self.onChanNotice(message))
+                    if message['type'] == 'JOIN':
+                        message.update(self.onJoin(message))
+                    if message['type'] == 'PART':
+                        message.update(self.onPart(message))
+                    if message['type'] == 'QUIT':
+                        message.update(self.onQuit(message))
+                    if message['type'] == 'NICK':
+                        message.update(self.onNick(message))
+                    if message['type'] == 'KICK':
+                        message.update(self.onKick(message))
+                    if message['type'] == 'MODE':
+                        message.update(self.onMode(message))
+                    print(message)
         print('Left run()-Method.')
         logging.debug('Left run()-Method.')
         return 0
@@ -254,6 +256,8 @@ class IRC:
             return msg
         ircmsg = ircmsg.split()
         msg['channel'] = ircmsg[2]
+        if not msg['channel'].startswith('#'):
+            msg['channel'] = ircmsg[0].split('!')[0][1:]
         msg['content'] = ' '.join(ircmsg[3:])[1:]
         if msg['content'].startswith('\x01ACTION'):
             msg['content'] = msg['content'][8:][:-1]
@@ -269,50 +273,52 @@ class IRC:
             threading.Thread(target=self.processCommand, args=(message,)).start()
         return dict()
 
-    def onChanAction(self, ircmsg):
+    def onChanAction(self, message):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG ##funircbot :ACTION test
         return dict()
 
-    def onPrivMsg(self, ircmsg):
+    def onPrivMsg(self, message):
         # :break3r!~Nameless@unaffiliated/break3r PRIVMSG MrAnchorman :Query MSG
+        if message['content'].startswith(self.commandLabel):
+            threading.Thread(target=self.processCommand, args=(message,)).start()
         return dict()
 
-    def onPrivAction(self, ircmsg):
+    def onPrivAction(self, message):
         # :break3r_test!~bre@185.64.159.168 PRIVMSG Anchorman :ACTION test
         return dict()
 
-    def onPrivNotice(self, ircmsg):
+    def onPrivNotice(self, message):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE MrAnchorman :Notice
         # :NickServ!NickServ@services. NOTICE Anchorman :You are now identified for Anchorman.
         #This nickname is registered. Please choose a different nickname, or identify via /msg NickServ identify <password>
         return dict()
 
-    def onChanNotice(self, ircmsg):
+    def onChanNotice(self, message):
         # :break3r!~Nameless@unaffiliated/break3r NOTICE ##funircbot :test
         return dict()
 
-    def onJoin(self, ircmsg):
+    def onJoin(self, message):
         # :b_test!~Nameles@185.64.159.168 JOIN ##funircbot
         return dict()
 
-    def onPart(self, ircmsg):
+    def onPart(self, message):
         # :b_test!~Nameles@185.64.159.168 PART ##funircbot :"Leaving"
         return dict()
 
-    def onQuit(self, ircmsg):
+    def onQuit(self, message):
         # :break3r_test!~bre@185.64.159.168 QUIT :Quit: Testing quit message
         return dict()
 
-    def onNick(self, ircmsg):
+    def onNick(self, message):
         # :b_t!~b_usernam@p4FF0ABD8.dip0.t-ipconnect.de NICK :bre_test
         return dict()
 
-    def onKick(self, ircmsg):
+    def onKick(self, message):
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :b_test
         # :break3r!~Nameless@unaffiliated/break3r KICK ##funircbot b_test :kicking
         return dict()
 
-    def onMode(self, ircmsg):
+    def onMode(self, message):
         '''
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +v b_test
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot -v b_test
@@ -323,12 +329,46 @@ class IRC:
         :break3r!~Nameless@unaffiliated/break3r MODE ##funircbot +g
         '''
         return dict()
-       return 0
 
-    def startup(self, queueToIRC, mainQueue):
+    def processCommand(self, message):
+        message['content'] = message['content'][1:]
+        command = message['content'].split()[0]
+        try:
+            self.plugins[command] = self.loadIRCPlugin(command)
+            if self.plugins[command] == False:
+                self.plugins.pop(command)
+            else:
+                output = self.plugins[command].run(message, self.ircsock)
+            if isinstance(output, str):
+                self.sendChannelMessage(output, message['channel'])
+        except Exception as e:
+            print(e.__class__.__name__)
+            print(e.args)
+        return 0
+
+    def loadIRCPlugin(self, command):
+        # if a command is given (messageText has : as first char)
+        # let's see if there's a plugin in the plugins folder
+        # if there's such a file, load (or reload) the plugin
+        # and call it
+        commandFile = command + '.py'
+        if command in self.plugins.keys():
+            if commandFile in os.listdir(os.path.join('.', 'plugins')):
+                logging.debug('Plugin ' + command + ' reloaded.')
+                return importlib.reload(self.plugins[command])
+            else:
+                return False
+        elif commandFile in os.listdir(os.path.join('.', 'plugins')):
+            logging.debug('Plugin ' + command + ' loaded.')
+            return importlib.import_module('.' + command, 'plugins')
+        else:
+             logging.warning('A plugin called ' + command + ' could not be found.')
+             raise Exception('Cannot load module ' + command + '.')
+
+    def startup(self, IRCQueue, mainQueue):
         # since i tried to make this bot a threaded bot, i need to call this function
         # setting up the needed queues and running up from hereon
-        self.queueToIRC = queueToIRC
+        self.IRCQueue = IRCQueue
         self.mainQueue = mainQueue
         self.connect()
         self.identifyServer()
