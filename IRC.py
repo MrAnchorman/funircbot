@@ -21,6 +21,7 @@ class IRC:
         self.IRCQueue = None
         self.mainQueue = None
         self.encoding = 'UTF-8'
+        self.activeServer = None
 
     def setup(self, config):
         logging.debug('Setting up Class IRC')
