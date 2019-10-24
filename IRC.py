@@ -167,6 +167,9 @@ class IRC:
                 if message['type'] == ':Closing':
                     message['content'] = ircmsg.rsplit('(')[1][:-1]
                     break
+                if message['type'] == 'SRVMSG':
+                    print('SERVERMESSAGE: {}'.format(ircmsg))
+                    continue
                 message.update(self.getGlobalIrcmsgProperties(ircmsg))
                 if message['usernick'] != self.nick:
                     message.update(self.getSelectiveIrcmsgProperties(ircmsg, message['type']))
@@ -225,6 +228,8 @@ class IRC:
                     target = 'CHAN'
                 else:
                     target = 'PRIV'
+            elif msgDict[0][1:] == self.activeServer:
+                return 'SRVMSG'
             else:
                 return msgDict[1]
 
@@ -272,6 +277,10 @@ class IRC:
             self.mainQueue.put('quit')
         if message['content'].startswith(self.commandLabel):
             threading.Thread(target=self.processCommand, args=(message,)).start()
+        if message['content'].startswith('dojoin'):
+            self.joinChannel(message['content'].split()[1])
+        if message['content'].startswith('dopart'):
+            self.sendServerMessage('PART {}'.format(message['content'].split()[1]))
         return dict()
 
     def onChanAction(self, message):
@@ -376,6 +385,12 @@ class IRC:
         self.joinChannel()
         while True:
             ircmsg = self.receiveMessage()
+            print(ircmsg)
+            if self.activeServer == None:
+                ircmsglist = ircmsg.split()
+                if ircmsglist[1] == '001':
+                    self.activeServer = ircmsglist[18].split('[')[0]
+                    logging.debug('My current server is {}'.format(self.activeServer))
             if ircmsg.find('473 Anchorman ##funircbot :Cannot join channel (+i) - you must be invited') != -1:
                 print('THE CHANNEL IS ON INVITE!')
                 time.sleep(5)
