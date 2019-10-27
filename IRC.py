@@ -168,7 +168,8 @@ class IRC:
                     message['content'] = ircmsg.rsplit('(')[1][:-1]
                     break
                 if message['type'] == 'SRVMSG':
-                    print('SERVERMESSAGE: {}'.format(ircmsg))
+                    print('Server sent: ', message)
+                    message.update(self.getServerMessageProperties(ircmsg))
                     continue
                 message.update(self.getGlobalIrcmsgProperties(ircmsg))
                 if message['usernick'] != self.nick:
@@ -229,11 +230,19 @@ class IRC:
                 else:
                     target = 'PRIV'
             elif msgDict[0][1:] == self.activeServer:
+                print(msgDict[0][1:], self.activeServer)
                 return 'SRVMSG'
             else:
                 return msgDict[1]
 
             return target + msgtype
+
+    def getServerMessageProperties(self, ircmsg):
+        print('Getting server message properties')
+        print(self.activeServer)
+        ircmsg = ircmsg.split(':' + self.activeServer)
+        print(ircmsg)
+        return dict()
 
     def getGlobalIrcmsgProperties(self, ircmsg):
             if ircmsg.startswith('ERROR :'):
