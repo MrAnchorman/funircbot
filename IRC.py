@@ -5,7 +5,7 @@ import sys # used for exit
 import socket # socket to irc
 import ssl # ssl context
 import logging # logging
-import importlib # used to import plugins
+import importlib # used to import and reload plugins
 import queue # used for queue to and from irc to main thread
 import time # used for time.sleep if channel is on invite
 import threading
@@ -49,7 +49,7 @@ class IRC:
                                                                     port =
                                                                     self.ircport))
         logging.debug("Wrapping socket to SSL")
-        # setting up a context to verify the hostname 
+        # setting up a context to verify the hostname
         context = ssl.SSLContext()
         context.verify_mode = ssl.CERT_REQUIRED
         context.check_hostname = True
@@ -81,7 +81,7 @@ class IRC:
         '''
         print('Nickserv asked to identify. Doing so!')
         logging.debug('Identifying myself as ' + self.nick)
-        self.sendServerMessage("PRIVMSG" + " NICKSERV :identify " + self.password + "\n")
+        self.sendServerMessage("PRIVMSG NICKSERV :identify " + self.password + "\n")
 
     def joinChannel(self, channelname = None):
         # Join channel. If channelname is not given, the bot will join the channel which is given per object variable
